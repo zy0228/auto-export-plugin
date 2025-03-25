@@ -106,12 +106,25 @@ function sleep(ms) {
 }
 
 // Listen for messages
-chrome.runtime.onMessage.addListener(function(request) {
+chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   console.log('Received message:', request, 'isProcessing:', isProcessing);
 
   if (request.action === 'startAutoParse' && !isProcessing) {
     console.log('Starting auto parse process');
     handleAutoParse(request.data);
+  }
+
+  if (request.action === 'exportData') {
+    exportData()
+    .then(data => {
+      console.log('Export successful, data length:', data.length);
+      sendResponse({ data: data });
+    })
+    .catch(error => {
+      console.error('Export failed:', error);
+      sendResponse({ error: error.message });
+    });
+    return true; // Will respond asynchronously
   }
 });
 
@@ -187,9 +200,25 @@ async function handleAutoParse(data) {
   }
 }
 
-// Check initial state
-chrome.storage.local.get(['spaceRemovalEnabled'], function(result) {
-  if (result.spaceRemovalEnabled) {
+// Check if URL contains 'bot-preorder' and auto enable/disable space removal
+function checkUrlAndToggleSpaceRemoval() {
+  if (window.location.href.includes('bot-preorder')) {
+    chrome.storage.local.set({ spaceRemovalEnabled: true });
     startSpaceRemoval();
+  } else {
+    chrome.storage.local.set({ spaceRemovalEnabled: false });
+    stopSpaceRemoval();
   }
-}); 
+}
+
+// Run check when page loads
+checkUrlAndToggleSpaceRemoval();
+
+// Listen for URL changes (for single page applications)
+let lastUrl = window.location.href;
+new MutationObserver(() => {
+  if (lastUrl !== window.location.href) {
+    lastUrl = window.location.href;
+    checkUrlAndToggleSpaceRemoval();
+  }
+}).observe(document, { subtree: true, childList: true }); 

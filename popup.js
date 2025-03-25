@@ -274,7 +274,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     jsonData.forEach(row => {
       const type = row['G']?.trim();
-      const value = row['H']?.trim();
+      let value = row['G']?.trim() + ' ' + row['H']?.trim();
+
+      // 判断，如果value中包含"cm （适合脚长20.6cm)", 则把括号跟里面内容去掉保留前后距离：
+      // "爱浪L-23 紫色双网;34码[内长21.3cm （适合脚长20.6cm）](1)"， 则保留"爱浪L-23 紫色双网;34码[内长21.3cm](1)"
+      // 使用正则表达式匹配括号及其内容
+      const bracketPattern = /（适合脚长\d+\.?\d*cm）/;
+      if (value.includes('cm') && bracketPattern.test(value)) {
+        value = value.replace(bracketPattern, '');
+      }
       
       if (type && value && type !== '单品商家编码') {
         let category = '';
@@ -285,13 +293,18 @@ document.addEventListener('DOMContentLoaded', function() {
           if (chineseMatch) {
             category = chineseMatch[0];
           }
+        } else if (type.includes(' ')) {  // 如果不是中文开头，且包含空格
+          category = type.split(' ')[0];  // 取空格前的部分
+          if (category.toLowerCase().trim().startsWith('md')) {
+            category = '名点';
+          }
         }
         // Rule 2: Special 1808 prefix
         else if (type.startsWith('1808')) {
           category = '1808';
         }
         // Rule 3: MD or md prefix
-        else if (type.toLowerCase().startsWith('md')) {
+        else if (type.toLowerCase().trim().startsWith('md')) {
           category = '名点';
         }
         // Rule 4: Special "涌哥" prefix - keep original type
@@ -329,25 +342,58 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // Handle export button
-  exportBtn.addEventListener('click', async function() {
+  exportBtn.addEventListener('click', function() {
+    console.log('Export button clicked');
     exportBtn.disabled = true;
     exportBtn.textContent = '导出中...';
 
-    try {
-      if (!port) {
-        port = await connectToContentScript();
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      console.log('Got current tab:', tabs[0]?.id);
+      if (!tabs[0]) {
+        alert('无法获取当前标签页信息');
+        exportBtn.disabled = false;
+        exportBtn.textContent = '导出数据';
+        return;
       }
 
-      if (port) {
-        port.postMessage({ action: 'exportData' });
-      } else {
-        throw new Error('无法建立连接');
-      }
-    } catch (error) {
-      console.error('Export error:', error);
-      alert('导出失败：' + error.message);
-      exportBtn.disabled = false;
-      exportBtn.textContent = '导出数据';
-    }
+      console.log('Sending exportData message to content script');
+      chrome.tabs.sendMessage(tabs[0].id, { action: 'exportData' }, function(response) {
+        console.log('Received response:', response);
+        
+        if (chrome.runtime.lastError) {
+          console.error('Chrome runtime error:', chrome.runtime.lastError);
+          alert('导出失败：' + chrome.runtime.lastError.message);
+          exportBtn.disabled = false;
+          exportBtn.textContent = '导出数据';
+          return;
+        }
+
+        if (!response) {
+          console.error('No response received');
+          alert('导出失败：未收到响应');
+          exportBtn.disabled = false;
+          exportBtn.textContent = '导出数据';
+          return;
+        }
+
+        if (response.data && response.data.trim()) {
+          console.log('Got data, length:', response.data.length);
+          navigator.clipboard.writeText(response.data)
+            .then(() => {
+              alert('数据已复制到剪贴板！');
+            })
+            .catch(err => {
+              console.error('复制失败:', err);
+              alert('复制失败，请重试');
+            });
+        } else {
+          console.error('No data in response');
+          alert('未找到可导出的数据');
+        }
+        
+        exportBtn.disabled = false;
+        exportBtn.textContent = '导出数据';
+      });
+    });
   });
 }); 
