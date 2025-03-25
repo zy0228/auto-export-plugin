@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Auto Export Helper",
+  "version": "1.0",
+  "description": "Remove extra spaces and export data from web pages",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "fileSystem"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*/*"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "web_accessible_resources": [{
+    "resources": ["lib/*"],
+    "matches": ["<all_urls>"]
+  }]
+} 
