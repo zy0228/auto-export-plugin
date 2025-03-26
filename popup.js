@@ -274,8 +274,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     jsonData.forEach(row => {
       let type = row['G']?.trim();
-      let value = row['G']?.replace(/\s+/g, '') + ' ' + row['H']?.replace(/\s+/g, '');
+      // handle startWith 'OZ', will replace with '欧足'
+      if (type && type.toLowerCase().startsWith('oz')) {
+        type = type.replace('OZ', '欧足');
+        type = type.replace('oz', '欧足');
+      }
 
+      let value = type?.replace(/\s+/g, '') + ' ' + row['H']?.replace(/\s+/g, '');
       // handle 1808鞋
       if (value.startsWith('1808鞋')) {
         value = value.replace('1808鞋', '1808');
