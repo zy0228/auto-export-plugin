@@ -273,8 +273,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const typeMap = new Map();
 
     jsonData.forEach(row => {
-      const type = row['G']?.trim();
-      let value = row['G']?.trim() + ' ' + row['H']?.trim();
+      let type = row['G']?.trim();
+      let value = row['G']?.replace(/\s+/g, '') + ' ' + row['H']?.replace(/\s+/g, '');
 
       // 判断，如果value中包含"cm （适合脚长20.6cm)", 则把括号跟里面内容去掉保留前后距离：
       // "爱浪L-23 紫色双网;34码[内长21.3cm （适合脚长20.6cm）](1)"， 则保留"爱浪L-23 紫色双网;34码[内长21.3cm](1)"
@@ -283,7 +283,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (value.includes('cm') && bracketPattern.test(value)) {
         value = value.replace(bracketPattern, '');
       }
-      
+
       if (type && value && type !== '单品商家编码') {
         let category = '';
         
@@ -332,6 +332,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     typeMap.forEach((values, type) => {
+      // remove space in type
       result.push({
         type: type,
         value: values
