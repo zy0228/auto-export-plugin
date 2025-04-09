@@ -11,12 +11,21 @@ let isProcessing = false;
 
 // Function to remove extra spaces
 function startSpaceRemoval() {
-  if (spaceRemovalInterval) return;
-  
   // Check if current URL contains 'bot-preorder'
   if (!window.location.href.includes('bot-preorder')) {
     return;
   }
+
+  console.log('startSpaceRemoval')
+  setTimeout(() => {
+    const singleRadio = document.querySelector('#trade > header > form > div:nth-child(4) > div > div')
+    console.log(singleRadio)
+    if (singleRadio) {
+      singleRadio.click()
+    }
+  }, 1000)
+  
+  if (spaceRemovalInterval) return;
   
   spaceRemovalInterval = setInterval(() => {
     const textarea = document.querySelector('textarea');

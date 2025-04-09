@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const parseBtn = document.getElementById('parseBtn');
   let currentData = null; // Store the processed data
   let port = null;
+  let lastImportedFileName = '';
 
   // Load saved state
   chrome.storage.local.get(['spaceRemovalEnabled'], function(result) {
@@ -212,11 +213,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Record the file name without extension
+    const fileNameWithoutExtension = file.name.replace(/\.[^/.]+$/, "");
+    chrome.storage.local.set({ lastImportedFileName: fileNameWithoutExtension });
+
     importBtn.disabled = true;
     importBtn.textContent = '导入中...';
 
     const reader = new FileReader();
-    reader.onload = async function(e) {
+    reader.onload = function(e) {
       try {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
@@ -228,28 +233,11 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Display results
         displayResults(processedData);
-        
-        // Send the processed data to content script using port
-        try {
-          if (!port) {
-            port = await connectToContentScript();
-          }
-
-          if (port) {
-            port.postMessage({
-              action: 'importData',
-              data: processedData
-            });
-          }
-        } catch (error) {
-          console.error('Error sending data to content script:', error);
-        }
       } catch (error) {
         console.error('Error processing Excel file:', error);
         resultContent.innerHTML = '<div style="color: red;">处理Excel文件时出错</div>' + error;
         resultContainer.classList.add('show');
       } finally {
-        // Reset button state
         importBtn.disabled = false;
         importBtn.textContent = '导入Excel';
       }
@@ -259,7 +247,6 @@ document.addEventListener('DOMContentLoaded', function() {
       console.error('Error reading file');
       resultContent.innerHTML = '<div style="color: red;">读取文件时出错</div>';
       resultContainer.classList.add('show');
-      // Reset button state
       importBtn.disabled = false;
       importBtn.textContent = '导入Excel';
     };
@@ -354,12 +341,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Handle export button
   exportBtn.addEventListener('click', function() {
-    console.log('Export button clicked');
     exportBtn.disabled = true;
     exportBtn.textContent = '导出中...';
 
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      console.log('Got current tab:', tabs[0]?.id);
       if (!tabs[0]) {
         alert('无法获取当前标签页信息');
         exportBtn.disabled = false;
@@ -367,43 +352,40 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
       }
 
-      console.log('Sending exportData message to content script');
-      chrome.tabs.sendMessage(tabs[0].id, { action: 'exportData' }, function(response) {
-        console.log('Received response:', response);
-        
-        if (chrome.runtime.lastError) {
-          console.error('Chrome runtime error:', chrome.runtime.lastError);
-          alert('导出失败：' + chrome.runtime.lastError.message);
+      chrome.storage.local.get('lastImportedFileName', function(result) {
+        const fileName = result.lastImportedFileName || 'export';
+
+        chrome.tabs.sendMessage(tabs[0].id, { action: 'exportData' }, function(response) {
+          if (chrome.runtime.lastError) {
+            console.error('Chrome runtime error:', chrome.runtime.lastError);
+            alert('导出失败：' + chrome.runtime.lastError.message);
+            exportBtn.disabled = false;
+            exportBtn.textContent = '导出数据';
+            return;
+          }
+
+          if (response && response.data && response.data.trim()) {
+            // Create a blob from the data
+            const blob = new Blob([response.data], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+
+            // Create a link to download the file
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${fileName}.txt`;
+            a.click();
+
+            // Revoke the object URL
+            URL.revokeObjectURL(url);
+
+            // alert('数据已导出为TXT文件！');
+          } else {
+            alert('未找到可导出的数据');
+          }
+          
           exportBtn.disabled = false;
           exportBtn.textContent = '导出数据';
-          return;
-        }
-
-        if (!response) {
-          console.error('No response received');
-          alert('导出失败：未收到响应');
-          exportBtn.disabled = false;
-          exportBtn.textContent = '导出数据';
-          return;
-        }
-
-        if (response.data && response.data.trim()) {
-          console.log('Got data, length:', response.data.length);
-          navigator.clipboard.writeText(response.data)
-            .then(() => {
-              alert('数据已复制到剪贴板！');
-            })
-            .catch(err => {
-              console.error('复制失败:', err);
-              alert('复制失败，请重试');
-            });
-        } else {
-          console.error('No data in response');
-          alert('未找到可导出的数据');
-        }
-        
-        exportBtn.disabled = false;
-        exportBtn.textContent = '导出数据';
+        });
       });
     });
   });
