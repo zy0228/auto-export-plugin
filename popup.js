@@ -267,6 +267,12 @@ document.addEventListener('DOMContentLoaded', function() {
         type = type.replace('oz', '欧足');
       }
 
+      // 去掉17黑 会识别错的场景
+      // 比如： "17黑灰；41码" 会识别成
+      if (row['H']?.startsWith('17黑')) {
+        row['H'] = row['H'].substring(2)
+      }
+
       let value = type?.replace(/\s+/g, '') + ' ' + row['H']?.replace(/\s+/g, '');
       // handle 1808鞋
       if (value.startsWith('1808鞋')) {
