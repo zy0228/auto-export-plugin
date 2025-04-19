@@ -86,7 +86,7 @@ async function exportData() {
                   resolve(result);
                 }
               }
-            }, 700);
+            }, 1000);
           } catch (error) {
             console.error(`Error clicking row ${index + 1}:`, error);
             processedCount++;
@@ -94,7 +94,7 @@ async function exportData() {
               resolve(result);
             }
           }
-        }, index * 1000);
+        }, index * 1500);
       });
     } catch (error) {
       console.error('Error in exportData:', error);
