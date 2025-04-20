@@ -284,6 +284,11 @@ document.addEventListener('DOMContentLoaded', function() {
         value = value.replace(/\[内长.*?\]/g, '');
       }
 
+      // 去掉[内长***]这种格式的字符
+      if (value.startsWith('58工厂')) {
+        value = value.replace('58工厂', '');
+      }
+
 
       // 判断，如果value中包含"cm （适合脚长20.6cm)", 则把括号跟里面内容去掉保留前后距离：
       // "爱浪L-23 紫色双网;34码[内长21.3cm （适合脚长20.6cm）](1)"， 则保留"爱浪L-23 紫色双网;34码[内长21.3cm](1)"
